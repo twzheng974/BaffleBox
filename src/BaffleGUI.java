@@ -125,7 +125,7 @@ public class BaffleGUI extends JFrame
         this.remaining.setBounds(520, 40, 240, 20);
         this.remaining.setVisible(true);
         this.shootButton = new JButton("Shoot");
-        this.sbHandler = new ShootButtonHandler((ShootButtonHandler)null);
+        this.sbHandler = new ShootButtonHandler();
         this.shootButton.addActionListener(this.sbHandler);
         this.panel.add(this.shootButton);
         this.shootButton.setBounds(520, 70, 240, 40);
@@ -133,7 +133,7 @@ public class BaffleGUI extends JFrame
         this.panel.add(this.shootTF);
         this.shootTF.setBounds(520, 120, 240, 40);
         this.guessButton = new JButton("Guess");
-        this.gbHandler = new GuessButtonHandler((GuessButtonHandler)null);
+        this.gbHandler = new GuessButtonHandler();
         this.guessButton.addActionListener(this.gbHandler);
         this.panel.add(this.guessButton);
         this.guessButton.setBounds(520, 170, 240, 40);
@@ -147,7 +147,7 @@ public class BaffleGUI extends JFrame
         this.panel.add(this.guessTypeTF);
         this.guessTypeTF.setBounds(680, 220, 80, 40);
         this.historyButton = new JButton("History");
-        this.hbHandler = new HistoryButtonHandler((HistoryButtonHandler)null);
+        this.hbHandler = new HistoryButtonHandler();
         this.historyButton.addActionListener(this.hbHandler);
         this.panel.add(this.historyButton);
         this.historyButton.setBounds(520, 270, 240, 40);
