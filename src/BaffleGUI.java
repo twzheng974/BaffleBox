@@ -1,42 +1,45 @@
 import java.awt.event.ActionEvent;
-import javax.swing.JOptionPane;
+import javax.swing.*;
 import java.awt.event.ActionListener;
-import java.awt.Component;
-import java.awt.LayoutManager;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.EventQueue;
-import javax.swing.ImageIcon;
-import javax.swing.Icon;
 import java.util.ArrayList;
-import javax.swing.JTextField;
-import javax.swing.JButton;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
 import java.awt.Point;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JFrame;
 
 // 
+// Original Program by Jimmy Zheng
 // Decompiled by Procyon v0.5.30
 // 
 
-public class BaffleGUI extends JFrame
+class BaffleGUI extends JFrame
 {
+    //GUI Element Position Variables
     private static final int WIDTH = 800;
     private static final int HEIGHT = 600;
-    private static final int OFFSET = 20;
-    private static final int LABEL_SIDE = 40;
-    private static final int COMP_WIDTH = 240;
-    private static final int COMP_HEIGHT = 40;
-    private static final String RULES = "[RULES]\n1. Shoot a laser by typing a number (0-39) in the text box below the shoot button as your starting position (denoted in black). The laser should end up on the opposite side of the grid unless there is a baffle in the way, which will deflect the laser.\n2. Guess the position of the baffle by typing row index, column index, and baffle type into the three textboxes below the guess button. Row and column index increases top to bottom and left to right respectively, starting at 1. A correct guess will reveal that baffle ('\\' is from top left to bottom right; '/' is from top right to bottom left)\n3. Click on the history button to see what you did previously.\n\n[SCORING GUIDE]\nShoot: -1 point\nCorrect Guess: +7 points\nIncorrect Guess: -3 points";
-    private JPanel panel;
-    private JPanel promptPanel;
+    private static final int GRID_WIDTH = 40;
+    private static final int GRID_HEIGHT = 40;
+    private static final int ITEM_WIDTH = 240;
+    private static final int ITEM_HEIGHT = 40;
+    private static final int X_OFFSET = 520;
+    private static final int Y_OFFSET = 20;
+
+    //Rules
+    private static final String RULES =
+            "[RULES]\n" +
+                    "1. Shoot a laser by typing a number (0-39) in the text box below the shoot button as your starting position (denoted in black). The laser should end up on the opposite side of the grid unless there is a baffle in the way, which will deflect the laser.\n" +
+                    "2. Guess the position of the baffle by typing row index, column index, and baffle type into the three textboxes below the guess button. Row and column index increases top to bottom and left to right respectively, starting at 1. A correct guess will reveal that baffle ('\\' is from top left to bottom right; '/' is from top right to bottom left)\n" +
+                    "3. Click on the history button to see what you did previously.\n\n" +
+                    "[SCORING GUIDE]\n" +
+                    "Shoot: -1 point\n" +
+                    "Correct Guess: +7 points\n" +
+                    "Incorrect Guess: -3 points";
+
+    //GUI Elements
+
     private JLabel[][] grid;
     private Point[][] gridCoords;
     private JTextArea gameMsg;
-    private JScrollPane gameScr;
     private JLabel score;
     private JLabel remaining;
     private JButton shootButton;
@@ -55,252 +58,311 @@ public class BaffleGUI extends JFrame
     private ShootButtonHandler sbHandler;
     private GuessButtonHandler gbHandler;
     private HistoryButtonHandler hbHandler;
-    private ClassLoader cl;
     private BaffleBox box;
-    
-    public BaffleGUI() {
-        this.promptDiff();
-        this.cl = this.getClass().getClassLoader();
-        this.empty = new ImageIcon(this.cl.getResource("img/blank.png"));
-        this.slash1 = new ImageIcon(this.cl.getResource("img/backslash.png"));
-        this.slash3 = new ImageIcon(this.cl.getResource("img/foreslash.png"));
-        this.box = new BaffleBox(this.difficulty);
-        this.gridCoords = new Point[12][12];
-        int x = 20;
+
+    /**
+     * Normal Constructor for BaffleGUI
+     * @param mode 1 if debug mode
+     */
+    BaffleGUI(int mode)
+    {
+        // Prompt the user for difficulty
+        if (mode == 0) promptDiff();
+        else difficulty = Math.abs(mode);
+
+        //Initialize the images used in the game
+        ClassLoader cl = getClass().getClassLoader();
+        empty = new ImageIcon(cl.getResource("img/blank.png"));
+        slash1 = new ImageIcon(cl.getResource("img/backslash.png"));
+        slash3 = new ImageIcon(cl.getResource("img/foreslash.png"));
+
+        //Create an array for all the image locations
+        box = new BaffleBox(difficulty);
+        gridCoords = new Point[12][12];
+        int x;
         int y = 20;
-        for (int r = 0; r < this.gridCoords.length; ++r) {
+        for (int r = 0; r < gridCoords.length; ++r) {
             x = 20;
-            for (int c = 0; c < this.gridCoords[r].length; ++c) {
-                this.gridCoords[r][c] = new Point(x, y);
+            for (int c = 0; c < gridCoords[r].length; ++c) {
+                gridCoords[r][c] = new Point(x, y);
                 x += 40;
             }
             y += 40;
         }
-        this.history = new ArrayList<String>();
-        this.initDisplay();
-        this.setDefaultCloseOperation(3);
+        history = new ArrayList<>();
+
+        //Initializes the Display
+        initDisplay();
+        if (mode < 0) box.getGrid().printGrid();
+        //Close the program when the user presses the red X
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     }
-    
-    public void displayGame() {
+
+    /**
+     * Displays the Gameplay GUI
+     */
+    void displayGame() {
         EventQueue.invokeLater(new Runnable() {
             @Override
             public void run() {
-                BaffleGUI.this.setVisible(true);
+                setVisible(true);
             }
         });
     }
-    
-    public void initDisplay() {
-        this.panel = new JPanel() {
+
+    /**
+     * Initializes the gameplay GUI
+     */
+    private void initDisplay() {
+        //Create Main Panel
+        JPanel panel = new JPanel() {
             public void paintComponent(final Graphics g) {
                 super.paintComponent(g);
             }
         };
-        this.setSize(new Dimension(800, 600));
-        this.setTitle("BaffleBox");
-        this.panel.setLayout(null);
-        this.grid = new JLabel[12][12];
-        for (int r = 0; r < this.grid.length; ++r) {
-            for (int c = 0; c < this.grid[r].length; ++c) {
-                this.grid[r][c] = new JLabel("", 0);
-                this.panel.add(this.grid[r][c]);
-                this.grid[r][c].setBounds(this.gridCoords[r][c].x, this.gridCoords[r][c].y, 40, 40);
-                if (this.box.getGrid().getElement(r, c) == -1) {
-                    this.grid[r][c].setText("");
+        setSize(new Dimension(WIDTH, HEIGHT));
+        setTitle("BaffleBox");
+        panel.setLayout(null);
+
+        //Filling Grid
+        grid = new JLabel[12][12];
+        for (int r = 0; r < grid.length; ++r) {
+            for (int c = 0; c < grid[r].length; ++c) {
+                grid[r][c] = new JLabel("", SwingConstants.CENTER);
+                panel.add(grid[r][c]);
+                grid[r][c].setBounds(gridCoords[r][c].x, gridCoords[r][c].y, GRID_WIDTH, GRID_HEIGHT);
+                //Corners
+                if (box.getGrid().getElement(r, c) == -1) {
+                    grid[r][c].setText("");
                 }
+                //Inside
                 else if (r > 0 && r < 11 && c > 0 && c < 11) {
-                    this.grid[r][c].setIcon(this.empty);
+                    grid[r][c].setIcon(empty);
                 }
+                //Edges
                 else {
-                    this.grid[r][c].setText(new StringBuilder().append(this.box.getGrid().getElement(r, c)).toString());
+                    grid[r][c].setText("" + box.getGrid().getElement(r, c));
                 }
             }
         }
-        this.score = new JLabel("Score: " + this.box.getScore());
-        this.panel.add(this.score);
-        this.score.setBounds(520, 20, 120, 20);
-        this.score.setVisible(true);
-        this.remaining = new JLabel("Baffles Remaining: " + this.box.getRemaining());
-        this.panel.add(this.remaining);
-        this.remaining.setBounds(520, 40, 240, 20);
-        this.remaining.setVisible(true);
-        this.shootButton = new JButton("Shoot");
-        this.sbHandler = new ShootButtonHandler();
-        this.shootButton.addActionListener(this.sbHandler);
-        this.panel.add(this.shootButton);
-        this.shootButton.setBounds(520, 70, 240, 40);
-        this.shootTF = new JTextField("Shoot Location (0-39)");
-        this.panel.add(this.shootTF);
-        this.shootTF.setBounds(520, 120, 240, 40);
-        this.guessButton = new JButton("Guess");
-        this.gbHandler = new GuessButtonHandler();
-        this.guessButton.addActionListener(this.gbHandler);
-        this.panel.add(this.guessButton);
-        this.guessButton.setBounds(520, 170, 240, 40);
-        this.guessRowTF = new JTextField("Row (1-10)");
-        this.panel.add(this.guessRowTF);
-        this.guessRowTF.setBounds(520, 220, 80, 40);
-        this.guessColTF = new JTextField("Column (1-10)");
-        this.panel.add(this.guessColTF);
-        this.guessColTF.setBounds(600, 220, 80, 40);
-        this.guessTypeTF = new JTextField("Type ('/' or '\\')");
-        this.panel.add(this.guessTypeTF);
-        this.guessTypeTF.setBounds(680, 220, 80, 40);
-        this.historyButton = new JButton("History");
-        this.hbHandler = new HistoryButtonHandler();
-        this.historyButton.addActionListener(this.hbHandler);
-        this.panel.add(this.historyButton);
-        this.historyButton.setBounds(520, 270, 240, 40);
-        this.gameMsg = new JTextArea();
-        this.gameScr = new JScrollPane(this.gameMsg);
-        this.panel.add(this.gameScr);
-        this.gameMsg.setText("[RULES]\n1. Shoot a laser by typing a number (0-39) in the text box below the shoot button as your starting position (denoted in black). The laser should end up on the opposite side of the grid unless there is a baffle in the way, which will deflect the laser.\n2. Guess the position of the baffle by typing row index, column index, and baffle type into the three textboxes below the guess button. Row and column index increases top to bottom and left to right respectively, starting at 1. A correct guess will reveal that baffle ('\\' is from top left to bottom right; '/' is from top right to bottom left)\n3. Click on the history button to see what you did previously.\n\n[SCORING GUIDE]\nShoot: -1 point\nCorrect Guess: +7 points\nIncorrect Guess: -3 points");
-        this.gameScr.setBounds(520, 320, 240, 180);
-        this.gameMsg.setEditable(false);
-        this.gameMsg.setWrapStyleWord(true);
-        this.gameMsg.setLineWrap(true);
-        this.gameScr.setVisible(true);
-        this.getContentPane().add(this.panel);
-        this.panel.setVisible(true);
+
+        //Loading Remaining Elements
+        //Score Label
+        score = new JLabel("Score: " + box.getScore());
+        panel.add(score);
+        score.setBounds(X_OFFSET, Y_OFFSET, ITEM_WIDTH / 2, ITEM_HEIGHT / 2);
+        score.setVisible(true);
+
+        //Baffle Remaining Label
+        remaining = new JLabel("Baffles Remaining: " + box.getRemaining());
+        panel.add(remaining);
+        remaining.setBounds(X_OFFSET, 40, ITEM_WIDTH, ITEM_HEIGHT / 2);
+        remaining.setVisible(true);
+
+        //Shoot Button
+        shootButton = new JButton("Shoot");
+        sbHandler = new ShootButtonHandler();
+        shootButton.addActionListener(sbHandler);
+        panel.add(shootButton);
+        shootButton.setBounds(X_OFFSET, 70, ITEM_WIDTH, ITEM_HEIGHT);
+
+        //Shoot Text Field
+        shootTF = new JTextField("Shoot Location (0-39)");
+        panel.add(shootTF);
+        shootTF.setBounds(X_OFFSET, 120, ITEM_WIDTH, ITEM_HEIGHT);
+
+        //Guess Button
+        guessButton = new JButton("Guess");
+        gbHandler = new GuessButtonHandler();
+        guessButton.addActionListener(gbHandler);
+        panel.add(guessButton);
+        guessButton.setBounds(X_OFFSET, 170, ITEM_WIDTH, ITEM_HEIGHT);
+
+        //Guess Row Text Field
+        guessRowTF = new JTextField("Row (1-10)");
+        panel.add(guessRowTF);
+        guessRowTF.setBounds(X_OFFSET, 220, ITEM_WIDTH / 3, ITEM_HEIGHT);
+
+        //Guess Column Text Field
+        guessColTF = new JTextField("Column (1-10)");
+        panel.add(guessColTF);
+        guessColTF.setBounds(600, 220, ITEM_WIDTH / 3, ITEM_HEIGHT);
+
+        //Guess Baffle Text Field
+        guessTypeTF = new JTextField("Type ('/' or '\\')");
+        panel.add(guessTypeTF);
+        guessTypeTF.setBounds(680, 220, ITEM_WIDTH / 3, ITEM_HEIGHT);
+
+        //History Button
+        historyButton = new JButton("History");
+        hbHandler = new HistoryButtonHandler();
+        historyButton.addActionListener(hbHandler);
+        panel.add(historyButton);
+        historyButton.setBounds(X_OFFSET, 270, ITEM_WIDTH, ITEM_HEIGHT);
+
+        //Message Box
+        gameMsg = new JTextArea();
+        JScrollPane gameScr = new JScrollPane(gameMsg);
+        panel.add(gameScr);
+        gameMsg.setText(RULES);
+        gameScr.setBounds(X_OFFSET, 320, ITEM_WIDTH, 180);
+        gameMsg.setEditable(false);
+        gameMsg.setWrapStyleWord(true);
+        gameMsg.setLineWrap(true);
+        gameScr.setVisible(true);
+        getContentPane().add(panel);
+        panel.setVisible(true);
     }
-    
-    public void promptDiff() {
+
+    /**
+     * Prompts the User for Game Difficulty
+     */
+    private void promptDiff() {
+        JPanel promptPanel = new JPanel();
         final Object[] options = { "Easy", "Medium", "Hard" };
-        final int n = JOptionPane.showOptionDialog(this.promptPanel, "Select your difficulty:", "BaffleBox", 1, 3, null, options, options[0]);
-        switch (n) {
-            case 0: {
-                this.difficulty = 5;
-                break;
-            }
-            case 1: {
-                this.difficulty = 7;
-                break;
-            }
-            case 2: {
-                this.difficulty = 10;
-                break;
-            }
+        final int n = JOptionPane.showOptionDialog(promptPanel, "Select your difficulty:", "BaffleBox", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+        switch (n)
+        {
+            case 0: { difficulty = 5; break; }
+            case 1: { difficulty = 7; break; }
+            case 2: { difficulty = 10; }
         }
     }
-    
-    public void updateGrid() {
-        for (int r = 1; r < this.grid.length - 1; ++r) {
-            for (int c = 1; c < this.grid[r].length - 1; ++c) {
-                final int type = this.box.getGrid().getElement(r, c);
-                if (type > 0 && !this.box.getGrid().getNotFound(r, c)) {
-                    if (type == 1) {
-                        this.grid[r][c].setIcon(this.slash1);
-                    }
-                    else if (type == 3) {
-                        this.grid[r][c].setIcon(this.slash3);
-                    }
+
+    /**
+     * Refreshes the Grid for each Correct Guess
+     */
+    private void updateGrid()
+    {
+        for (int r = 1; r < grid.length - 1; ++r)
+        {
+            for (int c = 1; c < grid[r].length - 1; ++c)
+            {
+                final int type = box.getGrid().getElement(r, c);
+                if (type > 0 && !box.getGrid().getNotFound(r, c))
+                {
+                    if (type == 1) { grid[r][c].setIcon(slash1); }
+                    else if (type == 3) { grid[r][c].setIcon(slash3); }
                 }
             }
         }
     }
-    
-    static /* synthetic */ void access$1(final BaffleGUI baffleGUI, final String message) {
-        baffleGUI.message = message;
-    }
-    
+
+    /**
+     * Event Handler for 'Shoot' Button
+     */
     private class ShootButtonHandler implements ActionListener
     {
         @Override
-        public void actionPerformed(final ActionEvent e) {
+        public void actionPerformed(final ActionEvent e)
+        {
             int position;
-            try {
-                position = Integer.parseInt(BaffleGUI.this.shootTF.getText());
+            //Testing for Valid Inputs
+            try
+            {
+                position = Integer.parseInt(shootTF.getText());
             }
-            catch (NumberFormatException e2) {
-                BaffleGUI.access$1(BaffleGUI.this, "Please only enter numbers 0 - 39 for shooting.");
-                BaffleGUI.this.gameMsg.setText(BaffleGUI.this.message);
-                BaffleGUI.this.shootTF.setText("");
+            catch (NumberFormatException e2)
+            {
+                message = "Please only enter numbers 0 - 39 for shooting.";
+                gameMsg.setText(message);
+                shootTF.setText("");
                 return;
             }
-            if (position >= 0 && position < 40) {
-                BaffleGUI.access$1(BaffleGUI.this, BaffleGUI.this.box.fireLaser(position));
-                BaffleGUI.this.history.add(BaffleGUI.this.message);
+
+            //Fire Laser if Fire Position is Valid
+            if (position >= 0 && position < 40)
+            {
+                message = box.fireLaser(position);
+                history.add(message);
             }
-            else {
-                BaffleGUI.access$1(BaffleGUI.this, "Invalid Location");
-            }
-            BaffleGUI.this.shootTF.setText("");
-            BaffleGUI.this.score.setText("Score: " + BaffleGUI.this.box.getScore());
-            BaffleGUI.this.gameMsg.setText(BaffleGUI.this.message);
+            else { message = "Please only enter numbers 0 - 39 for shooting."; }
+            shootTF.setText("");
+            score.setText("Score: " + box.getScore());
+            gameMsg.setText(message);
         }
     }
-    
+
+    /**
+     * Event Handler for the 'Guess' Button
+     */
     private class GuessButtonHandler implements ActionListener
     {
         @Override
-        public void actionPerformed(final ActionEvent e) {
-            int r = 0;
-            int c = 0;
-            int t = -1;
-            try {
-                r = Integer.parseInt(BaffleGUI.this.guessRowTF.getText());
-                c = Integer.parseInt(BaffleGUI.this.guessColTF.getText());
+        public void actionPerformed(final ActionEvent e)
+        {
+            int r, c, t;
+
+            //Testing for Valid Inputs
+            try
+            {
+                r = Integer.parseInt(guessRowTF.getText());
+                c = Integer.parseInt(guessColTF.getText());
             }
-            catch (NumberFormatException e2) {
-                BaffleGUI.access$1(BaffleGUI.this, "Please enter 1 - 10 for row or column index.");
-                BaffleGUI.this.gameMsg.setText(BaffleGUI.this.message);
-                BaffleGUI.this.guessRowTF.setText("");
-                BaffleGUI.this.guessColTF.setText("");
-                BaffleGUI.this.guessTypeTF.setText("");
+            catch (NumberFormatException e2)
+            {
+                message = "Please enter 1 - 10 for row or column index.";
+                gameMsg.setText(message);
+                //Clear Input Fields
+                guessRowTF.setText("");
+                guessColTF.setText("");
                 return;
             }
-            final String type = BaffleGUI.this.guessTypeTF.getText().trim().substring(0, 1);
-            if (type.equals("\\")) {
-                t = 1;
-            }
-            else if (type.equals("/")) {
-                t = 3;
-            }
-            if (r > 0 && r <= 10 && c > 0 && c <= 10 && t != -1) {
-                BaffleGUI.access$1(BaffleGUI.this, "Your guess of baffle '" + type + "' at [" + r + ", " + c + "]");
-                if (BaffleGUI.this.box.guessBaffle(r, c, t)) {
-                    final BaffleGUI this$0 = BaffleGUI.this;
-                    BaffleGUI.access$1(this$0, String.valueOf(this$0.message) + " is correct.");
-                    BaffleGUI.this.updateGrid();
+
+            //Testing for Valid Baffle Types
+            final char type = guessTypeTF.getText().trim().charAt(0);
+
+            switch (type)
+            {
+                case '\\': t = 1; break;
+                case '/': t = 3; break;
+                default:
+                {
+                    gameMsg.setText("Invalid Baffle Type");
+                    //Clear Input Field
+                    guessTypeTF.setText("");
+                    return;
                 }
-                else {
-                    final BaffleGUI this$2 = BaffleGUI.this;
-                    BaffleGUI.access$1(this$2, String.valueOf(this$2.message) + " is wrong.");
-                }
-                BaffleGUI.this.history.add(BaffleGUI.this.message);
             }
-            else if (t != -1) {
-                BaffleGUI.access$1(BaffleGUI.this, "Invalid Location");
+
+            //Comparing Guess With Actual Grid
+            message = "Your guess of baffle '" + type + "' at [" + r + ", " + c + "]";
+            if (box.guessBaffle(r, c, t))
+            {
+                message += " is correct.";
+                updateGrid();
             }
-            else if (t == -1) {
-                BaffleGUI.access$1(BaffleGUI.this, "Invalid Baffle Type");
-            }
-            else {
-                BaffleGUI.access$1(BaffleGUI.this, "Invalid Location and Baffle Type");
-            }
-            if (BaffleGUI.this.box.getGrid().allFound()) {
-                final BaffleGUI this$3 = BaffleGUI.this;
-                BaffleGUI.access$1(this$3, String.valueOf(this$3.message) + "\nYou found all the baffles!");
-            }
-            BaffleGUI.this.guessRowTF.setText("");
-            BaffleGUI.this.guessColTF.setText("");
-            BaffleGUI.this.guessTypeTF.setText("");
-            BaffleGUI.this.score.setText("Score: " + BaffleGUI.this.box.getScore());
-            BaffleGUI.this.remaining.setText("Baffles Remaining: " + BaffleGUI.this.box.getRemaining());
-            BaffleGUI.this.gameMsg.setText(BaffleGUI.this.message);
+            else { message += " is wrong."; }
+
+            history.add(message);
+
+            //If all the Baffles are Found
+            if (box.getGrid().allFound()) { message += "\nYou found all the baffles!"; }
+
+            //Clear Input Fields
+            guessRowTF.setText("");
+            guessColTF.setText("");
+            guessTypeTF.setText("");
+
+            //Update Textboxes
+            score.setText("Score: " + box.getScore());
+            remaining.setText("Baffles Remaining: " + box.getRemaining());
+            gameMsg.setText(message);
         }
     }
-    
+
+    /**
+     * Event Handler for the 'History' Button
+     */
     private class HistoryButtonHandler implements ActionListener
     {
         @Override
-        public void actionPerformed(final ActionEvent e) {
-            BaffleGUI.access$1(BaffleGUI.this, "");
-            for (int i = BaffleGUI.this.history.size() - 1; i >= 0; --i) {
-                final BaffleGUI this$0 = BaffleGUI.this;
-                BaffleGUI.access$1(this$0, String.valueOf(this$0.message) + BaffleGUI.this.history.get(i) + "\n");
-            }
-            BaffleGUI.this.gameMsg.setText(BaffleGUI.this.message);
+        public void actionPerformed(final ActionEvent e)
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int i = history.size() - 1; i >= 0; --i)
+                sb.append(history.get(i) + "\n");
+            gameMsg.setText(sb.toString());
         }
     }
 }
